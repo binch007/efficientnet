@@ -37,7 +37,7 @@ from six.moves import xrange
 from keras_applications.imagenet_utils import _obtain_input_shape
 from keras_applications.imagenet_utils import preprocess_input as _preprocess_input
 
-from . import get_submodules_from_kwargs
+from . import get_submodules_from_kwargs_attention
 from .weights import IMAGENET_WEIGHTS_PATH, IMAGENET_WEIGHTS_HASHES, NS_WEIGHTS_HASHES, NS_WEIGHTS_PATH
 
 backend = None
@@ -99,7 +99,7 @@ def preprocess_input(x, **kwargs):
 
 
 def get_swish(**kwargs):
-    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
+    backend, layers, models, keras_utils, _, _ = get_submodules_from_kwargs_attention(kwargs)
 
     def swish(x):
         """Swish activation function: x * sigmoid(x).
@@ -127,7 +127,7 @@ def get_dropout(**kwargs):
     Issue:
         https://github.com/tensorflow/tensorflow/issues/30946
     """
-    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
+    backend, layers, models, keras_utils, _, _ = get_submodules_from_kwargs_attention(kwargs)
 
     class FixedDropout(layers.Dropout):
         def _get_noise_shape(self, inputs):
@@ -258,12 +258,16 @@ class Channel_attention:
 
     def estimate_attention_map(self):
         hidden_activation_size = self.input_feature.shape[-1]
-        max_pool = tf.keras.layers.MaxPool2D(
-                        pool_size=(self.kernel_size, self.kernel_size),
-                        name=self.prefix + 'Channel_att_max_pool')(self.input_feature)
-        avg_pool = tf.keras.layers.AveragePooling2D(
-                        pool_size=(self.kernel_size, self.kernel_size),
-                        name=self.prefix + 'Channel_att_avg_pool')(self.input_feature)
+        # max_pool = tf.keras.layers.MaxPool2D(
+        #                 pool_size=(self.kernel_size, self.kernel_size),
+        #                 name=self.prefix + 'Channel_att_max_pool')(self.input_feature)
+        # avg_pool = tf.keras.layers.AveragePooling2D(
+        #                 pool_size=(self.kernel_size, self.kernel_size),
+        #                 name=self.prefix + 'Channel_att_avg_pool')(self.input_feature)
+        max_pool = tf.math.reduce_max(self.input_feature, axis=[1,2], keepdims=True,
+                                      name=self.prefix + 'Channel_att_max_pool')
+        avg_pool = tf.math.reduce_mean(self.input_feature, axis=[1,2], keepdims=True,
+                                       name=self.prefix + 'Channel_att_avg_pool')
         shared_dense = tf.keras.Sequential([
                             tf.keras.layers.Dense(hidden_activation_size/self.reduction_ratio),
                             tf.keras.layers.Dense(hidden_activation_size)],
@@ -277,7 +281,7 @@ class Channel_attention:
 
     def attention_module(self, input_feature, prefix=''):
         self.input_feature = input_feature
-        self.kernel_size = input_feature.shape[1]
+        self.kernel_size = tf.shape(input_feature)[1]
         self.prefix = prefix
         attention_map = self.estimate_attention_map()
         attention_value = input_feature * tf.tile(
@@ -382,7 +386,7 @@ def EfficientNet(width_coefficient,
             or invalid input shape.
     """
     global backend, layers, models, keras_utils
-    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
+    backend, layers, models, keras_utils, spatial_attention_first, dual_attention = get_submodules_from_kwargs_attention(kwargs)
     
     spatial_attention = Spatial_attention()
     channel_attention = Channel_attention()
@@ -451,8 +455,19 @@ def EfficientNet(width_coefficient,
                           activation=activation,
                           drop_rate=drop_rate,
                           prefix='block{}a_'.format(idx + 1))
-        x = spatial_attention.attention_module(x, prefix='block{}a_'.format(idx + 1))
-
+        attention_value = None
+        if spatial_attention_first:
+            prefix = 'block{}a_'.format(idx + 1)
+            attention_value = spatial_attention.attention_module(x, prefix=prefix)
+            if dual_attention:
+                attention_value = channel_attention.attention_module(attention_value, prefix=prefix)
+        elif spatial_attention_first == False:
+            prefix = 'block{}a_'.format(idx + 1)
+            attention_value = channel_attention.attention_module(x, prefix=prefix)
+            if dual_attention:
+                attention_value = spatial_attention.attention_module(attention_value, prefix=prefix)
+        x += attention_value
+        
         block_num += 1
         if block_args.num_repeat > 1:
             # pylint: disable=protected-access
@@ -469,9 +484,17 @@ def EfficientNet(width_coefficient,
                                   activation=activation,
                                   drop_rate=drop_rate,
                                   prefix=block_prefix)
+                attention_value = None
+                if spatial_attention_first:
+                    attention_value = spatial_attention.attention_module(x, prefix=block_prefix)
+                    if dual_attention:
+                        attention_value = channel_attention.attention_module(attention_value, prefix=block_prefix)
+                elif spatial_attention_first == False:
+                    attention_value = channel_attention.attention_module(x, prefix=block_prefix)
+                    if dual_attention:
+                        attention_value = spatial_attention.attention_module(attention_value, prefix=block_prefix)
+                x += attention_value  
                 block_num += 1
-                print("--- MBConvBlock #%d" %block_num)
-                
 
     # Build top
     x = layers.Conv2D(round_filters(1280, width_coefficient, depth_divisor), 1,

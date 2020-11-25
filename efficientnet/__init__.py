@@ -33,6 +33,19 @@ def get_submodules_from_kwargs(kwargs):
     return backend, layers, models, utils
 
 
+def get_submodules_from_kwargs_attention(kwargs):
+    backend = kwargs.get('backend', _KERAS_BACKEND)
+    layers = kwargs.get('layers', _KERAS_LAYERS)
+    models = kwargs.get('models', _KERAS_MODELS)
+    utils = kwargs.get('utils', _KERAS_UTILS)
+    dual_attention = kwargs.get('dual_attention', False)
+    spatial_attention_first = kwargs.get('spatial_attention_first', None)
+    for key in kwargs.keys():
+        if key not in ['backend', 'layers', 'models', 'utils', 'dual_attention', 'spatial_attention_first']:
+            raise TypeError('Invalid keyword argument: %s', key)
+    return backend, layers, models, utils, spatial_attention_first, dual_attention
+
+
 def inject_keras_modules(func):
     import keras
     @functools.wraps(func)
