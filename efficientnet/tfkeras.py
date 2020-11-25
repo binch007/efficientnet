@@ -1,5 +1,7 @@
 from . import inject_tfkeras_modules, init_tfkeras_custom_objects
-from . import model
+# from . import modeleffie
+from . import model_attention as model
+
 
 from .preprocessing import center_crop_and_resize
 
