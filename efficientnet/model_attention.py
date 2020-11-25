@@ -259,15 +259,15 @@ class Channel_attention:
     def estimate_attention_map(self):
         hidden_activation_size = self.input_feature.shape[-1]
         # max_pool = tf.keras.layers.MaxPool2D(
-        #                 pool_size=(self.kernel_size, self.kernel_size),
+        #                 pool_size=(tf.shape(self.input_feature)[1], tf.shape(self.input_feature)[1]),
         #                 name=self.prefix + 'Channel_att_max_pool')(self.input_feature)
         # avg_pool = tf.keras.layers.AveragePooling2D(
         #                 pool_size=(self.kernel_size, self.kernel_size),
         #                 name=self.prefix + 'Channel_att_avg_pool')(self.input_feature)
-        max_pool = tf.math.reduce_max(self.input_feature, axis=[1,2], keepdims=True,
-                                      name=self.prefix + 'Channel_att_max_pool')
-        avg_pool = tf.math.reduce_mean(self.input_feature, axis=[1,2], keepdims=True,
-                                       name=self.prefix + 'Channel_att_avg_pool')
+        max_pool = tf.keras.layers.GlobalMaxPooling2D(
+                        name=self.prefix + 'Channel_att_max_pool')(self.input_feature)
+        avg_pool = tf.keras.layers.GlobalAveragePooling2D(
+                        name=self.prefix + 'Channel_att_avg_pool')(self.input_feature)
         shared_dense = tf.keras.Sequential([
                             tf.keras.layers.Dense(hidden_activation_size/self.reduction_ratio),
                             tf.keras.layers.Dense(hidden_activation_size)],
@@ -284,6 +284,8 @@ class Channel_attention:
         self.kernel_size = tf.shape(input_feature)[1]
         self.prefix = prefix
         attention_map = self.estimate_attention_map()
+        attention_map = tf.expand_dims(attention_map, axis=1)
+        attention_map = tf.expand_dims(attention_map, axis=1)
         attention_value = input_feature * tf.tile(
                             attention_map, [1, self.kernel_size, self.kernel_size, 1])
         return attention_value
