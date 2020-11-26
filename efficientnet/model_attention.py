@@ -457,7 +457,7 @@ def EfficientNet(width_coefficient,
                           activation=activation,
                           drop_rate=drop_rate,
                           prefix='block{}a_'.format(idx + 1))
-        attention_value = None
+        attention_value = tf.zeros(tf.shape(x))
         if spatial_attention_first:
             prefix = 'block{}a_'.format(idx + 1)
             attention_value = spatial_attention.attention_module(x, prefix=prefix)
@@ -468,7 +468,7 @@ def EfficientNet(width_coefficient,
             attention_value = channel_attention.attention_module(x, prefix=prefix)
             if dual_attention:
                 attention_value = spatial_attention.attention_module(attention_value, prefix=prefix)
-        x += attention_value
+        x = tf.math.add(x, attention_value)
         
         block_num += 1
         if block_args.num_repeat > 1:
@@ -486,7 +486,7 @@ def EfficientNet(width_coefficient,
                                   activation=activation,
                                   drop_rate=drop_rate,
                                   prefix=block_prefix)
-                attention_value = None
+                attention_value = tf.zeros(tf.shape(x))
                 if spatial_attention_first:
                     attention_value = spatial_attention.attention_module(x, prefix=block_prefix)
                     if dual_attention:
@@ -495,7 +495,7 @@ def EfficientNet(width_coefficient,
                     attention_value = channel_attention.attention_module(x, prefix=block_prefix)
                     if dual_attention:
                         attention_value = spatial_attention.attention_module(attention_value, prefix=block_prefix)
-                x += attention_value  
+                x = tf.math.add(x, attention_value)
                 block_num += 1
 
     # Build top
