@@ -327,6 +327,19 @@ class Spatial_attention:
         return attention_value
     
     
+class Visual_attention:
+    
+    def __init__(self, smap):
+        super(Visual_attention, self).__init__()
+        self.smap = tf.expand_dims(smap, axis=-1)
+
+    def attention_module(self, input_feature, prefix=''):
+        kernel_size = tf.shape(input_feature)[-2]
+        num_channels = tf.shape(input_feature)[-1]
+        resized_smap = tf.image.resize(self.smap, [kernel_size, kernel_size], name=prefix + 'Visual_att_resize')
+        attention_value = input_feature * tf.tile(
+                            resized_smap, [1, 1, 1, num_channels])
+        return attention_value
     
 def EfficientNet(width_coefficient,
                  depth_coefficient,
@@ -342,6 +355,7 @@ def EfficientNet(width_coefficient,
                  input_shape=None,
                  pooling=None,
                  classes=1000,
+                 smap=None,
                  **kwargs):
     """Instantiates the EfficientNet architecture using given scaling coefficients.
     Optionally loads weights pre-trained on ImageNet.
@@ -388,10 +402,11 @@ def EfficientNet(width_coefficient,
             or invalid input shape.
     """
     global backend, layers, models, keras_utils
-    backend, layers, models, keras_utils, spatial_attention_first, dual_attention, visual_attention = get_submodules_from_kwargs_attention(kwargs)
+    backend, layers, models, keras_utils, spatial_attention_first, dual_attention, visual_attention_first = get_submodules_from_kwargs_attention(kwargs)
     
     spatial_attention = Spatial_attention()
     channel_attention = Channel_attention()
+    visual_attention = Visual_attention(smap)
     
 
     if not (weights in {'imagenet', 'noisy-student', None} or os.path.exists(weights)):
@@ -468,6 +483,10 @@ def EfficientNet(width_coefficient,
             attention_value = channel_attention.attention_module(x, prefix=prefix)
             if dual_attention:
                 attention_value = spatial_attention.attention_module(attention_value, prefix=prefix)
+        elif visual_attention_first:
+            prefix = 'block{}a_'.format(idx + 1)
+            print(x)
+            visual_attention.attention_module(x, prefix=prefix)
         x = tf.math.add(x, attention_value)
         
         block_num += 1
