@@ -40,10 +40,11 @@ def get_submodules_from_kwargs_attention(kwargs):
     utils = kwargs.get('utils', _KERAS_UTILS)
     dual_attention = kwargs.get('dual_attention', False)
     spatial_attention_first = kwargs.get('spatial_attention_first', None)
+    visual_attention = kwargs.get('visual_attention', None)
     for key in kwargs.keys():
-        if key not in ['backend', 'layers', 'models', 'utils', 'dual_attention', 'spatial_attention_first']:
+        if key not in ['backend', 'layers', 'models', 'utils', 'dual_attention', 'spatial_attention_first', 'visual_attention']:
             raise TypeError('Invalid keyword argument: %s', key)
-    return backend, layers, models, utils, spatial_attention_first, dual_attention
+    return backend, layers, models, utils, spatial_attention_first, dual_attention, visual_attention
 
 
 def inject_keras_modules(func):

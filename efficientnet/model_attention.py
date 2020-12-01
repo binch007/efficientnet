@@ -99,7 +99,7 @@ def preprocess_input(x, **kwargs):
 
 
 def get_swish(**kwargs):
-    backend, layers, models, keras_utils, _, _ = get_submodules_from_kwargs_attention(kwargs)
+    backend, layers, models, keras_utils, _, _, _ = get_submodules_from_kwargs_attention(kwargs)
 
     def swish(x):
         """Swish activation function: x * sigmoid(x).
@@ -127,7 +127,7 @@ def get_dropout(**kwargs):
     Issue:
         https://github.com/tensorflow/tensorflow/issues/30946
     """
-    backend, layers, models, keras_utils, _, _ = get_submodules_from_kwargs_attention(kwargs)
+    backend, layers, models, keras_utils, _, _, _ = get_submodules_from_kwargs_attention(kwargs)
 
     class FixedDropout(layers.Dropout):
         def _get_noise_shape(self, inputs):
@@ -388,7 +388,7 @@ def EfficientNet(width_coefficient,
             or invalid input shape.
     """
     global backend, layers, models, keras_utils
-    backend, layers, models, keras_utils, spatial_attention_first, dual_attention = get_submodules_from_kwargs_attention(kwargs)
+    backend, layers, models, keras_utils, spatial_attention_first, dual_attention, visual_attention = get_submodules_from_kwargs_attention(kwargs)
     
     spatial_attention = Spatial_attention()
     channel_attention = Channel_attention()
