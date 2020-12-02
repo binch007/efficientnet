@@ -329,17 +329,22 @@ class Spatial_attention:
     
 class Visual_attention:
     
-    def __init__(self, smap):
+    def __init__(self):
         super(Visual_attention, self).__init__()
-        self.smap = tf.expand_dims(smap, axis=-1)
 
-    def attention_module(self, input_feature, prefix=''):
+    def attention_module(self, input_feature, smap, prefix=''):
+        print(smap.shape)
+        # if smap.shape[-1]:  
+        #     smap = tf.expand_dims(smap, axis=-1)
+        # while tf.rank(smap) < 4:
+        #     smap = tf.expand_dims(smap, axis=0)
         kernel_size = tf.shape(input_feature)[-2]
         num_channels = tf.shape(input_feature)[-1]
-        resized_smap = tf.image.resize(self.smap, [kernel_size, kernel_size], name=prefix + 'Visual_att_resize')
+        resized_smap = tf.image.resize(smap, [kernel_size, kernel_size], name=prefix+'Visual_att_resize')
         attention_value = input_feature * tf.tile(
                             resized_smap, [1, 1, 1, num_channels])
         return attention_value
+    
     
 def EfficientNet(width_coefficient,
                  depth_coefficient,
@@ -404,11 +409,6 @@ def EfficientNet(width_coefficient,
     global backend, layers, models, keras_utils
     backend, layers, models, keras_utils, spatial_attention_first, dual_attention, visual_attention_first = get_submodules_from_kwargs_attention(kwargs)
     
-    spatial_attention = Spatial_attention()
-    channel_attention = Channel_attention()
-    visual_attention = Visual_attention(smap)
-    
-
     if not (weights in {'imagenet', 'noisy-student', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization), `imagenet` '
@@ -429,6 +429,8 @@ def EfficientNet(width_coefficient,
 
     if input_tensor is None:
         img_input = layers.Input(shape=input_shape)
+        kernel_size = input_shape[0]
+        smap_input = layers.Input(shape=(kernel_size, kernel_size, 1))
     else:
         if backend.backend() == 'tensorflow':
             from tensorflow.python.keras.backend import is_keras_tensor
@@ -441,6 +443,10 @@ def EfficientNet(width_coefficient,
 
     bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
     activation = get_swish(**kwargs)
+    
+    spatial_attention = Spatial_attention()
+    channel_attention = Channel_attention()
+    visual_attention = Visual_attention()
 
     # Build stem
     x = img_input
@@ -485,8 +491,7 @@ def EfficientNet(width_coefficient,
                 attention_value = spatial_attention.attention_module(attention_value, prefix=prefix)
         elif visual_attention_first:
             prefix = 'block{}a_'.format(idx + 1)
-            print(x)
-            visual_attention.attention_module(x, prefix=prefix)
+            attention_value = visual_attention.attention_module(x, smap_input, prefix=prefix)
         x = tf.math.add(x, attention_value)
         
         block_num += 1
@@ -514,6 +519,8 @@ def EfficientNet(width_coefficient,
                     attention_value = channel_attention.attention_module(x, prefix=block_prefix)
                     if dual_attention:
                         attention_value = spatial_attention.attention_module(attention_value, prefix=block_prefix)
+                elif visual_attention_first:
+                    attention_value = visual_attention.attention_module(x, smap_input, prefix=block_prefix)
                 x = tf.math.add(x, attention_value)
                 block_num += 1
 
@@ -544,7 +551,7 @@ def EfficientNet(width_coefficient,
     if input_tensor is not None:
         inputs = keras_utils.get_source_inputs(input_tensor)
     else:
-        inputs = img_input
+        inputs = [img_input, smap_input]
 
     # Create model.
     model = models.Model(inputs, x, name=model_name)
