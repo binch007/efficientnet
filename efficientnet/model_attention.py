@@ -333,7 +333,6 @@ class Visual_attention:
         super(Visual_attention, self).__init__()
 
     def attention_module(self, input_feature, smap, prefix=''):
-        print(smap.shape)
         # if smap.shape[-1]:  
         #     smap = tf.expand_dims(smap, axis=-1)
         # while tf.rank(smap) < 4:
@@ -341,8 +340,10 @@ class Visual_attention:
         kernel_size = tf.shape(input_feature)[-2]
         num_channels = tf.shape(input_feature)[-1]
         resized_smap = tf.image.resize(smap, [kernel_size, kernel_size], name=prefix+'Visual_att_resize')
-        attention_value = input_feature * tf.tile(
-                            resized_smap, [1, 1, 1, num_channels])
+        # attention_value = input_feature * tf.tile(
+                            # resized_smap, [1, 1, 1, num_channels])
+        attention_value = input_feature
+        print(smap)
         return attention_value
     
     
@@ -438,15 +439,17 @@ def EfficientNet(width_coefficient,
             is_keras_tensor = backend.is_keras_tensor
         if not is_keras_tensor(input_tensor):
             img_input = layers.Input(tensor=input_tensor, shape=input_shape)
+            smap_input = layers.Input(tensor=input_tensor, shape=input_shape)
         else:
             img_input = input_tensor
+            smap_input = input_tensor
 
     bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
     activation = get_swish(**kwargs)
     
     spatial_attention = Spatial_attention()
     channel_attention = Channel_attention()
-    visual_attention = Visual_attention()
+    # visual_attention = Visual_attention()
 
     # Build stem
     x = img_input
