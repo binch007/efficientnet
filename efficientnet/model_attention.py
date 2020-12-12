@@ -468,6 +468,8 @@ def EfficientNet(width_coefficient,
             attention_value = channel_attention.attention_module(x, prefix=prefix)
             if dual_attention:
                 attention_value = spatial_attention.attention_module(attention_value, prefix=prefix)
+        elif (spatial_attention_first == None) & (dual_attention == False):
+            print("--- Naive model (block1)")
         x = tf.math.add(x, attention_value)
         
         block_num += 1
@@ -495,6 +497,8 @@ def EfficientNet(width_coefficient,
                     attention_value = channel_attention.attention_module(x, prefix=block_prefix)
                     if dual_attention:
                         attention_value = spatial_attention.attention_module(attention_value, prefix=block_prefix)
+                elif (spatial_attention_first == None) & (dual_attention == False):
+                    print("--- Naive model (block2)")
                 x = tf.math.add(x, attention_value)
                 block_num += 1
 
