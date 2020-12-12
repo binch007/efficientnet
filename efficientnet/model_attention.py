@@ -459,14 +459,18 @@ def EfficientNet(width_coefficient,
                           prefix='block{}a_'.format(idx + 1))
         attention_value = tf.zeros(tf.shape(x))
         if spatial_attention_first:
+            print("--- Spatial attention First (block1)")
             prefix = 'block{}a_'.format(idx + 1)
             attention_value = spatial_attention.attention_module(x, prefix=prefix)
             if dual_attention:
+                print("--- Dual_attention: Spatial - Channel (block1)")
                 attention_value = channel_attention.attention_module(attention_value, prefix=prefix)
         elif spatial_attention_first == False:
+            print("--- Channel attention First (block1)")
             prefix = 'block{}a_'.format(idx + 1)
             attention_value = channel_attention.attention_module(x, prefix=prefix)
             if dual_attention:
+                print("--- Dual_attention: Channel - Spatial (block1)")
                 attention_value = spatial_attention.attention_module(attention_value, prefix=prefix)
         elif (spatial_attention_first == None) & (dual_attention == False):
             print("--- Naive model (block1)")
@@ -490,12 +494,16 @@ def EfficientNet(width_coefficient,
                                   prefix=block_prefix)
                 attention_value = tf.zeros(tf.shape(x))
                 if spatial_attention_first:
+                    print("--- Spatial attention First (block2)")
                     attention_value = spatial_attention.attention_module(x, prefix=block_prefix)
                     if dual_attention:
+                        print("--- Dual_attention: Spatial - Channel (block2)")
                         attention_value = channel_attention.attention_module(attention_value, prefix=block_prefix)
                 elif spatial_attention_first == False:
+                    print("--- Channel attention First (block2)")
                     attention_value = channel_attention.attention_module(x, prefix=block_prefix)
                     if dual_attention:
+                        print("--- Dual_attention: Channel - Spatial (block2)")
                         attention_value = spatial_attention.attention_module(attention_value, prefix=block_prefix)
                 elif (spatial_attention_first == None) & (dual_attention == False):
                     print("--- Naive model (block2)")
